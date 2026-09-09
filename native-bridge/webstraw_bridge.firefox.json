@@ -1,0 +1,9 @@
+{
+	"name": "webstraw_bridge",
+	"description": "WebSTRAW native-messaging bridge host",
+	"path": "C:\\path\\to\\webstraw_bridge_host.bat",
+	"type": "stdio",
+	"allowed_extensions": [
+		"{531906d3-e22f-4a6c-a102-8057b88a1a63}"
+	]
+}
