@@ -4,7 +4,6 @@
 	"path": "d:\\Dev\\Others\\WebSTRAW\\native-bridge\\webstraw_bridge_host.bat",
 	"type": "stdio",
 	"allowed_origins": [
-		"edge-extension://ngomnmfeolpijljnnhccipghmjjphpff/",
-		"chrome-extension://REPLACE_WITH_YOUR_EXTENSION_ID/"
+		"chrome-extension://ngomnmfeolpijljnnhccipghmjjphpff/"
 	]
 }

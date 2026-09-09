@@ -54,7 +54,7 @@ an `error` message when the request was rejected.
 | `webstraw_bridge_host.py` | The native-messaging host + local TCP relay. |
 | `webstraw_bridge_host.log` | Auto-created log of received requests and their status. |
 | `webstraw_bridge_host.bat` | Windows launcher the browser runs. |
-| `webstraw_bridge.json` | Native host manifest (Chrome/Edge/Chromium). |
+| `webstraw_bridge.json` | Native host manifest (Microsoft Edge). |
 | `webstraw_bridge.firefox.json` | Native host manifest (Firefox). |
 | `webstraw_client.py` | Example Python client. |
 
@@ -68,7 +68,7 @@ an `error` message when the request was rejected.
 
 ### 2. Get your extension ID
 
-- **Chrome/Edge**: open `chrome://extensions`, enable Developer mode, and copy
+- **Microsoft Edge**: open `edge://extensions`, enable Developer mode, and copy
   the ID shown under WebSTRAW.
 - **Firefox**: the ID is the gecko id from `manifest.json`
   (`{531906d3-e22f-4a6c-a102-8057b88a1a63}`).
@@ -81,9 +81,13 @@ and set:
 - `path` to the absolute path of `webstraw_bridge_host.bat`, e.g.
   `C:\\Tools\\webstraw\\native-bridge\\webstraw_bridge_host.bat`
   (use double backslashes in JSON).
-- For Chrome/Edge: replace `REPLACE_WITH_YOUR_EXTENSION_ID` in `allowed_origins`
-  with your extension ID, keeping the `chrome-extension://` prefix and trailing
-  slash.
+- For Edge: set `allowed_origins` to your extension ID using the
+  `chrome-extension://` prefix and a trailing slash, e.g.
+  `chrome-extension://ngomnmfeolpijljnnhccipghmjjphpff/`. **Edge is
+  Chromium-based, so for native messaging it identifies itself with the
+  `chrome-extension://` scheme, not `edge-extension://`** — using
+  `edge-extension://` causes the browser to report "Specified native messaging
+  host not found".
 
 ### 4. Register the host (Windows registry)
 
@@ -108,15 +112,7 @@ below.
 `HKCU` (current user) does **not** require an elevated/admin PowerShell. Adjust
 `$manifest` to your actual path.
 
-**Chrome:**
-
-```powershell
-$manifest = "d:\Dev\Others\WebSTRAW\native-bridge\webstraw_bridge.json"
-New-Item -Path "HKCU:\Software\Google\Chrome\NativeMessagingHosts\webstraw_bridge" -Force |
-  Set-ItemProperty -Name "(default)" -Value $manifest
-```
-
-**Microsoft Edge** (only the vendor path differs):
+**Microsoft Edge:**
 
 ```powershell
 $manifest = "d:\Dev\Others\WebSTRAW\native-bridge\webstraw_bridge.json"
@@ -139,7 +135,7 @@ administrator) PowerShell.
 #### 4.3 Verify the key
 
 ```powershell
-Get-ItemProperty -Path "HKCU:\Software\Google\Chrome\NativeMessagingHosts\webstraw_bridge" -Name "(default)"
+Get-ItemProperty -Path "HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\webstraw_bridge" -Name "(default)"
 ```
 
 The `(default)` value printed must be the manifest path, and that file must
@@ -159,7 +155,7 @@ exist. Common mistakes:
 #### 4.4 Remove the registration (when needed)
 
 ```powershell
-Remove-Item -Path "HKCU:\Software\Google\Chrome\NativeMessagingHosts\webstraw_bridge" -Force
+Remove-Item -Path "HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\webstraw_bridge" -Force
 ```
 
 ### 4b. Register the host (macOS / Linux)
@@ -168,8 +164,8 @@ Instead of the registry, copy the manifest into the browser's native-messaging
 hosts directory, and point `path` at `webstraw_bridge_host.py` (make it
 executable with `chmod +x`). Common locations:
 
-- Chrome (Linux): `~/.config/google-chrome/NativeMessagingHosts/webstraw_bridge.json`
-- Chrome (macOS): `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/webstraw_bridge.json`
+- Edge (Linux): `~/.config/microsoft-edge/NativeMessagingHosts/webstraw_bridge.json`
+- Edge (macOS): `~/Library/Application Support/Microsoft Edge/NativeMessagingHosts/webstraw_bridge.json`
 - Firefox (Linux): `~/.mozilla/native-messaging-hosts/webstraw_bridge.json`
 - Firefox (macOS): `~/Library/Application Support/Mozilla/NativeMessagingHosts/webstraw_bridge.json`
 
