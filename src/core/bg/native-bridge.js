@@ -21,10 +21,18 @@
  *   Source.
  */
 
-/* global browser, setTimeout */
+/* global browser, chrome, setTimeout */
 
 import * as business from "./business.js";
 import * as config from "./config.js";
+
+// On the Chromium MV3 build the background is a service worker that can be suspended, which
+// silently drops setTimeout timers. chrome.alarms survives suspension, so it is used as a
+// reliable fallback to re-check the native connection. Firefox (persistent background page)
+// has no such lifecycle, so the setTimeout path is enough there.
+const chromeAPI = typeof chrome != "undefined" ? chrome : (typeof globalThis != "undefined" ? globalThis.chrome : undefined);
+const ALARMS_SUPPORTED = Boolean(chromeAPI && chromeAPI.alarms);
+const RECONNECT_ALARM_NAME = "webstraw-bridge-reconnect";
 
 // Name of the native-messaging host registered on the operating system.
 // A local program (e.g. a Python script) implements this host and pushes
@@ -114,11 +122,39 @@ function onDisconnect() {
 }
 
 function scheduleReconnect() {
+	// Fast path: reconnect quickly while the worker is still alive.
 	setTimeout(() => {
 		if (enabled && !port) {
 			connect();
 		}
 	}, RECONNECT_DELAY);
+	// Reliable fallback for a suspended MV3 service worker: an alarm wakes the worker back up
+	// and re-runs the reconnect check even after setTimeout has been discarded.
+	if (ALARMS_SUPPORTED) {
+		try {
+			chromeAPI.alarms.create(RECONNECT_ALARM_NAME, { delayInMinutes: 0.5 });
+			// eslint-disable-next-line no-unused-vars
+		} catch (error) {
+			// alarms unavailable; the setTimeout fast path still applies
+		}
+	}
+}
+
+if (ALARMS_SUPPORTED) {
+	chromeAPI.alarms.onAlarm.addListener(alarm => {
+		if (alarm.name == RECONNECT_ALARM_NAME) {
+			if (enabled && !port) {
+				connect();
+			} else {
+				try {
+					chromeAPI.alarms.clear(RECONNECT_ALARM_NAME);
+					// eslint-disable-next-line no-unused-vars
+				} catch (error) {
+					// ignored
+				}
+			}
+		}
+	});
 }
 
 async function onMessage(message) {

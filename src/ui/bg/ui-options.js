@@ -21,7 +21,7 @@
  *   Source.
  */
 
-/* global browser, window, document, localStorage, FileReader, location, fetch, TextDecoder, DOMParser, HTMLElement, MouseEvent, btoa, URLSearchParams, setInterval, clearInterval */
+/* global browser, chrome, window, document, localStorage, FileReader, location, fetch, TextDecoder, DOMParser, HTMLElement, MouseEvent, btoa, URLSearchParams, setInterval, clearInterval */
 
 const EXTERNAL_CAPTURE_PING_DELAY = 15000;
 const EXTERNAL_CAPTURE_PENDING_REQUEST_TIMEOUT = 300000;
@@ -1594,10 +1594,15 @@ async function disableDestinationPermissions(permissions, disableGDrive = true, 
 }
 
 async function passReferrerOnError() {
+	// On Chromium MV3 the referer is injected via declarativeNetRequest, which is granted
+	// statically through the manifest (declarativeNetRequestWithHostAccess), so no runtime
+	// webRequest permission is requested. On Firefox the blocking webRequest permissions are
+	// still requested at runtime.
+	const usesDeclarativeNetRequest = Boolean(typeof chrome != "undefined" && chrome.declarativeNetRequest && chrome.declarativeNetRequest.updateSessionRules);
 	if (passReferrerOnErrorInput.checked) {
 		passReferrerOnErrorInput.checked = false;
 		try {
-			const permissionGranted = await browser.permissions.request({ permissions: ["webRequest", "webRequestBlocking"] });
+			const permissionGranted = usesDeclarativeNetRequest || await browser.permissions.request({ permissions: ["webRequest", "webRequestBlocking"] });
 			if (permissionGranted) {
 				passReferrerOnErrorInput.checked = true;
 				await update();
@@ -1618,7 +1623,9 @@ async function passReferrerOnError() {
 		await update();
 		await refresh();
 		await browser.runtime.sendMessage({ method: "requests.disableReferrerOnError" });
-		await browser.permissions.remove({ permissions: ["webRequest", "webRequestBlocking"] });
+		if (!usesDeclarativeNetRequest) {
+			await browser.permissions.remove({ permissions: ["webRequest", "webRequestBlocking"] });
+		}
 	}
 }
 

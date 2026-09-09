@@ -21,9 +21,10 @@
  *   Source.
  */
 
-/* global browser, navigator, URL, Blob, File */
+/* global browser, navigator, Blob, File */
 
 import { download } from "./download-util.js";
+import * as offscreen from "./offscreen-proxy.js";
 import * as tabsData from "./tabs-data.js";
 import { normalizeLayout } from "./../../ui/common/menu-layout.js";
 
@@ -843,7 +844,7 @@ async function exportConfig() {
 	const textContent = JSON.stringify(exportedConfig, null, 2);
 	const filename = `singlefile-settings-${(new Date()).toISOString().replace(/:/g, "_")}.json`;
 	if (BACKGROUND_SAVE_SUPPORTED) {
-		const url = URL.createObjectURL(new Blob([textContent], { type: "text/json" }));
+		const url = await offscreen.createObjectURL(new Blob([textContent], { type: "text/json" }));
 		try {
 			await download({
 				url,
@@ -851,7 +852,7 @@ async function exportConfig() {
 				saveAs: true
 			}, "_");
 		} finally {
-			URL.revokeObjectURL(url);
+			await offscreen.revokeObjectURL(url);
 		}
 		return {};
 	} else {

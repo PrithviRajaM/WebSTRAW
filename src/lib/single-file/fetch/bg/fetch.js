@@ -21,7 +21,7 @@
  *   Source.
  */
 
-/* global browser, XMLHttpRequest */
+/* global browser, fetch */
 
 const referrers = new Map();
 const REQUEST_ID_HEADER_NAME = "x-single-file-request-id";
@@ -32,6 +32,10 @@ export {
 	referrers,
 	fetchResource
 };
+
+// injectReferrer/clearInjectedReferrer live in requests.js, which also imports from this module.
+// The cycle is safe: these bindings are only read at call time, not during module evaluation.
+import { injectReferrer, clearInjectedReferrer } from "../../../../core/bg/requests.js";
 
 browser.runtime.onMessage.addListener((message, sender) => {
 	if (message.method && message.method.startsWith("singlefile.fetch")) {
@@ -77,45 +81,54 @@ async function sendResponse(tabId, requestId, response) {
 	return {};
 }
 
-function fetchResource(url, options = {}, includeRequestId) {
-	return new Promise((resolve, reject) => {
-		const xhrRequest = new XMLHttpRequest();
-		xhrRequest.withCredentials = true;
-		xhrRequest.responseType = "arraybuffer";
-		xhrRequest.onerror = event => reject(new Error(event.detail));
-		xhrRequest.onreadystatechange = () => {
-			if (xhrRequest.readyState == XMLHttpRequest.DONE) {
-				if (xhrRequest.status || xhrRequest.response.byteLength) {
-					if ((xhrRequest.status == 401 || xhrRequest.status == 403 || xhrRequest.status == 404) && !includeRequestId) {
-						fetchResource(url, options, true)
-							.then(resolve)
-							.catch(reject);
-					} else {
-						resolve({
-							arrayBuffer: xhrRequest.response,
-							array: Array.from(new Uint8Array(xhrRequest.response)),
-							headers: { "content-type": xhrRequest.getResponseHeader("Content-Type") },
-							status: xhrRequest.status
-						});
-					}
-				} else {
-					reject(new Error("Empty response"));
-				}
-			}
-		};
-		xhrRequest.open("GET", url, true);
-		if (options.headers) {
-			for (const entry of Object.entries(options.headers)) {
-				xhrRequest.setRequestHeader(entry[0], entry[1]);
-			}
+async function fetchResource(url, options = {}, includeRequestId) {
+	// A service worker (Chromium MV3) has no XMLHttpRequest, so use fetch(). On Firefox's
+	// persistent background page fetch() works too, so this single path serves both. The
+	// former xhr.withCredentials = true maps to credentials: "include".
+	const requestInit = {
+		method: "GET",
+		credentials: "include",
+		headers: {}
+	};
+	if (options.headers) {
+		for (const entry of Object.entries(options.headers)) {
+			requestInit.headers[entry[0]] = entry[1];
 		}
-		if (includeRequestId) {
-			const randomId = String(Math.random()).substring(2);
-			setReferrer(randomId, options.referrer);
-			xhrRequest.setRequestHeader(REQUEST_ID_HEADER_NAME, randomId);
+	}
+	let randomId, referrerRuleId;
+	if (includeRequestId) {
+		// The Referer header cannot be set through fetch() (it is a forbidden header name), so
+		// tag the request with a lookup id and let the referer helper inject the real Referer
+		// (via declarativeNetRequest on Chromium / blocking webRequest on Firefox).
+		randomId = String(Math.random()).substring(2);
+		setReferrer(randomId, options.referrer);
+		requestInit.headers[REQUEST_ID_HEADER_NAME] = randomId;
+		referrerRuleId = await injectReferrer(randomId);
+	}
+	let response;
+	try {
+		response = await fetch(url, requestInit);
+	} catch (error) {
+		throw new Error(error.message || String(error), { cause: error });
+	} finally {
+		if (referrerRuleId !== undefined) {
+			await clearInjectedReferrer(referrerRuleId);
 		}
-		xhrRequest.send();
-	});
+	}
+	const status = response.status;
+	if ((status == 401 || status == 403 || status == 404) && !includeRequestId) {
+		return fetchResource(url, options, true);
+	}
+	const arrayBuffer = await response.arrayBuffer();
+	if (!status && !arrayBuffer.byteLength) {
+		throw new Error("Empty response");
+	}
+	return {
+		arrayBuffer,
+		array: Array.from(new Uint8Array(arrayBuffer)),
+		headers: { "content-type": response.headers.get("Content-Type") },
+		status
+	};
 }
 
 function setReferrer(requestId, referrer) {

@@ -43,15 +43,19 @@ if (typeof globalThis == "undefined") {
 
 	if ((!globalThis.browser || NON_COMPLIANT_IMPLEMENTATION) && globalThis.chrome) {
 		const nativeAPI = globalThis.chrome;
+		// Manifest V3 (Chromium/Edge) renamed chrome.browserAction to chrome.action and dropped
+		// the old name. Alias it so the rest of the polyfill (and callers using browser.browserAction)
+		// keep working on both MV2 (browserAction) and MV3 (action).
+		const nativeBrowserAction = nativeAPI.browserAction || nativeAPI.action;
 		globalThis.__defineGetter__("browser", () => ({
-			browserAction: {
+			browserAction: nativeBrowserAction && {
 				onClicked: {
-					addListener: listener => nativeAPI.browserAction.onClicked.addListener(listener)
+					addListener: listener => nativeBrowserAction.onClicked.addListener(listener)
 				},
 				setBadgeText: options => new Promise((resolve, reject) => {
 					if (!FEATURE_TESTS["browserAction.setBadgeText"] || !FEATURE_TESTS["browserAction.setBadgeText"].callbackNotSupported) {
 						try {
-							nativeAPI.browserAction.setBadgeText(options, () => {
+							nativeBrowserAction.setBadgeText(options, () => {
 								if (nativeAPI.runtime.lastError) {
 									reject(nativeAPI.runtime.lastError);
 								} else {
@@ -64,7 +68,7 @@ if (typeof globalThis == "undefined") {
 						}
 					}
 					if (FEATURE_TESTS["browserAction.setBadgeText"] && FEATURE_TESTS["browserAction.setBadgeText"].callbackNotSupported) {
-						nativeAPI.browserAction.setBadgeText(options);
+						nativeBrowserAction.setBadgeText(options);
 						if (nativeAPI.runtime.lastError) {
 							reject(nativeAPI.runtime.lastError);
 						} else {
@@ -75,7 +79,7 @@ if (typeof globalThis == "undefined") {
 				setBadgeBackgroundColor: options => new Promise((resolve, reject) => {
 					if (!FEATURE_TESTS["browserAction.setBadgeBackgroundColor"] || !FEATURE_TESTS["browserAction.setBadgeBackgroundColor"].callbackNotSupported) {
 						try {
-							nativeAPI.browserAction.setBadgeBackgroundColor(options, () => {
+							nativeBrowserAction.setBadgeBackgroundColor(options, () => {
 								if (nativeAPI.runtime.lastError) {
 									reject(nativeAPI.runtime.lastError);
 								} else {
@@ -88,7 +92,7 @@ if (typeof globalThis == "undefined") {
 						}
 					}
 					if (FEATURE_TESTS["browserAction.setBadgeBackgroundColor"] && FEATURE_TESTS["browserAction.setBadgeBackgroundColor"].callbackNotSupported) {
-						nativeAPI.browserAction.setBadgeBackgroundColor(options);
+						nativeBrowserAction.setBadgeBackgroundColor(options);
 						if (nativeAPI.runtime.lastError) {
 							reject(nativeAPI.runtime.lastError);
 						} else {
@@ -99,7 +103,7 @@ if (typeof globalThis == "undefined") {
 				setTitle: options => new Promise((resolve, reject) => {
 					if (!FEATURE_TESTS["browserAction.setTitle"] || !FEATURE_TESTS["browserAction.setTitle"].callbackNotSupported) {
 						try {
-							nativeAPI.browserAction.setTitle(options, () => {
+							nativeBrowserAction.setTitle(options, () => {
 								if (nativeAPI.runtime.lastError) {
 									reject(nativeAPI.runtime.lastError);
 								} else {
@@ -112,7 +116,7 @@ if (typeof globalThis == "undefined") {
 						}
 					}
 					if (FEATURE_TESTS["browserAction.setTitle"] && FEATURE_TESTS["browserAction.setTitle"].callbackNotSupported) {
-						nativeAPI.browserAction.setTitle(options);
+						nativeBrowserAction.setTitle(options);
 						if (nativeAPI.runtime.lastError) {
 							reject(nativeAPI.runtime.lastError);
 						} else {
@@ -123,7 +127,7 @@ if (typeof globalThis == "undefined") {
 				setIcon: options => new Promise((resolve, reject) => {
 					if (!FEATURE_TESTS["browserAction.setIcon"] || !FEATURE_TESTS["browserAction.setIcon"].callbackNotSupported) {
 						try {
-							nativeAPI.browserAction.setIcon(options, () => {
+							nativeBrowserAction.setIcon(options, () => {
 								if (nativeAPI.runtime.lastError) {
 									reject(nativeAPI.runtime.lastError);
 								} else {
@@ -136,7 +140,7 @@ if (typeof globalThis == "undefined") {
 						}
 					}
 					if (FEATURE_TESTS["browserAction.setIcon"] && FEATURE_TESTS["browserAction.setIcon"].callbackNotSupported) {
-						nativeAPI.browserAction.setIcon(options);
+						nativeBrowserAction.setIcon(options);
 						if (nativeAPI.runtime.lastError) {
 							reject(nativeAPI.runtime.lastError);
 						} else {

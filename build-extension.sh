@@ -50,3 +50,25 @@ fi
 (cd .staging && zip -r ../singlefile-extension-firefox.zip manifest.json lib _locales src)
 
 rm -rf .staging
+
+# Chromium (Edge/Chrome) package: identical sources, but the Manifest V3 manifest
+# (manifest.chrome.json) is staged as manifest.json.
+rm -f singlefile-extension-chrome.zip
+
+rm -rf .staging-chrome
+mkdir .staging-chrome
+cp manifest.chrome.json .staging-chrome/manifest.json
+cp -R lib _locales src .staging-chrome
+
+if [ -n "$WOLEET_API_KEY" ]; then
+    sed -i.bak "s|WOLEET_API_KEY_PLACEHOLDER|$WOLEET_API_KEY|" .staging-chrome/src/lib/woleet/woleet.js .staging-chrome/lib/single-file-extension-background.js
+    rm -f .staging-chrome/src/lib/woleet/woleet.js.bak .staging-chrome/lib/single-file-extension-background.js.bak
+    if ! grep -q "$WOLEET_API_KEY" .staging-chrome/lib/single-file-extension-background.js; then
+        echo "The Woleet API key could not be injected"
+        exit 1
+    fi
+fi
+
+(cd .staging-chrome && zip -r ../singlefile-extension-chrome.zip manifest.json lib _locales src)
+
+rm -rf .staging-chrome

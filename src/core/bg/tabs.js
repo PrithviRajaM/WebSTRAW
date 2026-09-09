@@ -21,9 +21,10 @@
  *   Source.
  */
 
-/* global browser, setTimeout, OffscreenCanvas, Image, URL */
+/* global browser, setTimeout, OffscreenCanvas, createImageBitmap, fetch */
 
 import * as config from "./config.js";
+import * as offscreen from "./offscreen-proxy.js";
 import * as autosave from "./autosave.js";
 import * as business from "./business.js";
 import * as editor from "./editor.js";
@@ -143,14 +144,13 @@ async function captureTab(tabId, options) {
 					format: "png"
 				});
 			}
-			const image = new Image();
-			await new Promise((resolve, reject) => {
-				image.onload = resolve;
-				image.onerror = event => reject(new Error(event.detail));
-				image.src = imageSrc;
-			});
+			// A service worker has no HTMLImageElement, so decode the captured PNG data URL
+			// into an ImageBitmap (both fetch and createImageBitmap are available in workers).
+			const imageBlob = await (await fetch(imageSrc)).blob();
+			const image = await createImageBitmap(imageBlob);
 			const imageHeight = Math.min(canvasHeight - canvasY, canvasScrollStep);
 			context.drawImage(image, 0, canvasY, canvasWidth, imageHeight);
+			image.close();
 			y += scrollYStep;
 			canvasY += canvasScrollStep;
 		}
@@ -168,6 +168,6 @@ async function captureTab(tabId, options) {
 		await browser.tabs.sendMessage(tabId, { method: "content.endScrollTo" });
 	}
 	if (canvas) {
-		return URL.createObjectURL(await canvas.convertToBlob({ type: "image/png" }));
+		return offscreen.createObjectURL(await canvas.convertToBlob({ type: "image/png" }));
 	}
 }

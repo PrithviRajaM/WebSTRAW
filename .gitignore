@@ -3,6 +3,7 @@
 .idea/
 .woleet-key
 .staging/
+.staging-chrome/
 singlefile-extension-*.zip
 native-bridge/*.log
 /.vs

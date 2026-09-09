@@ -21,12 +21,13 @@
  *   Source.
  */
 
-/* global browser, URL, Blob */
+/* global browser, Blob */
 
 import * as config from "./config.js";
 import * as business from "./business.js";
 import * as companion from "./companion.js";
 import * as downloads from "./downloads.js";
+import * as offscreen from "./offscreen-proxy.js";
 import * as tabsData from "./tabs-data.js";
 import * as ui from "./../../ui/bg/index.js";
 import { getPageData } from "./../../index.js";
@@ -238,11 +239,11 @@ async function saveContent(message, tab) {
 						if (!(content instanceof Blob)) {
 							content = new Blob([content], { type });
 						}
-						pageData.url = URL.createObjectURL(content);
+						pageData.url = await offscreen.createObjectURL(content);
 						await downloads.downloadPage(pageData, options);
 					}
 					if (options.openSavedPage) {
-						const createTabProperties = { active: true, url: "/src/ui/pages/viewer.html?compressed=true&blobURI=" + URL.createObjectURL(content), windowId: tab.windowId };
+						const createTabProperties = { active: true, url: "/src/ui/pages/viewer.html?compressed=true&blobURI=" + (await offscreen.createObjectURL(content)), windowId: tab.windowId };
 						const index = tab.index;
 						try {
 							await browser.tabs.get(tabId);
@@ -266,7 +267,7 @@ async function saveContent(message, tab) {
 				delete replacedTabIds[tabId];
 			}
 			if (pageData && pageData.url) {
-				URL.revokeObjectURL(pageData.url);
+				await offscreen.revokeObjectURL(pageData.url);
 			}
 			ui.onEnd(tabId, true);
 		}

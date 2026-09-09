@@ -6,7 +6,9 @@
 	"license": "AGPL-3.0-or-later",
 	"scripts": {
 		"dev": "npx rollup -c rollup.config.dev.js",
-		"build": "./build-extension.sh"
+		"build": "./build-extension.sh",
+		"build:bundles": "npx rollup -c rollup.config.js",
+		"stage:chrome": "node tools/stage-chrome.js"
 	},
 	"type": "module",
 	"dependencies": {

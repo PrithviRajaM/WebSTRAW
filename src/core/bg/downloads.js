@@ -21,9 +21,10 @@
  *   Source.
  */
 
-/* global browser, singlefile, URL, fetch, document, Blob */
+/* global browser, singlefile, fetch, Blob */
 
 import * as config from "./config.js";
+import * as offscreen from "./offscreen-proxy.js";
 import * as bookmarks from "./bookmarks.js";
 import * as companion from "./companion.js";
 import * as business from "./business.js";
@@ -65,7 +66,7 @@ browser.tabs.onRemoved.addListener(tabId => {
 	const blobURL = viewerBlobURLs.get(tabId);
 	if (blobURL) {
 		viewerBlobURLs.delete(tabId);
-		URL.revokeObjectURL(blobURL);
+		offscreen.revokeObjectURL(blobURL);
 	}
 });
 
@@ -202,7 +203,7 @@ async function downloadContent(blob, tab, incognito, message) {
 				await editor.open({ tabIndex: tab.index + 1, filename: message.filename, content: await blob.text(), url: message.originalUrl });
 			} else if (message.saveToClipboard) {
 				message.content = await blob.text();
-				saveToClipboard(message);
+				await saveToClipboard(message);
 			} else if (message.saveWithWebDAV) {
 				response = await saveWithWebDAV(message.taskId, encodeSharpCharacter(message.filename), blob, message.webDAVURL, message.webDAVUser, message.webDAVPassword, { filenameConflictAction: message.filenameConflictAction, prompt });
 			} else if (message.saveWithMCP) {
@@ -253,7 +254,7 @@ async function downloadContent(blob, tab, incognito, message) {
 				});
 			} else {
 				if (!message.url) {
-					message.url = URL.createObjectURL(blob);
+					message.url = await offscreen.createObjectURL(blob);
 				}
 				response = await downloadPage(message, {
 					confirmFilename: message.confirmFilename,
@@ -279,7 +280,7 @@ async function downloadContent(blob, tab, incognito, message) {
 			}
 			ui.onEnd(tabId);
 			if (message.openSavedPage && !message.openEditor) {
-				await openViewerTab(tab, URL.createObjectURL(blob));
+				await openViewerTab(tab, await offscreen.createObjectURL(blob));
 			}
 		}
 	} catch (error) {
@@ -289,7 +290,7 @@ async function downloadContent(blob, tab, incognito, message) {
 		}
 	} finally {
 		if (message.url) {
-			URL.revokeObjectURL(message.url);
+			await offscreen.revokeObjectURL(message.url);
 		}
 	}
 }
@@ -388,7 +389,7 @@ async function downloadCompressedContent(message, tab) {
 					prompt
 				});
 			} else {
-				message.url = URL.createObjectURL(blob);
+				message.url = await offscreen.createObjectURL(blob);
 				response = await downloadPage(message, {
 					confirmFilename: message.confirmFilename,
 					incognito: tab.incognito,
@@ -410,7 +411,7 @@ async function downloadCompressedContent(message, tab) {
 			}
 			ui.onEnd(tabId);
 			if (message.openSavedPage && !message.openEditor) {
-				await openViewerTab(tab, URL.createObjectURL(blob), { compressed: true });
+				await openViewerTab(tab, await offscreen.createObjectURL(blob), { compressed: true });
 			}
 		}
 	} catch (error) {
@@ -420,7 +421,7 @@ async function downloadCompressedContent(message, tab) {
 		}
 	} finally {
 		if (message.url) {
-			URL.revokeObjectURL(message.url);
+			await offscreen.revokeObjectURL(message.url);
 		}
 	}
 }
@@ -643,16 +644,7 @@ async function downloadPage(pageData, options) {
 }
 
 function saveToClipboard(pageData) {
-	const command = "copy";
-	document.addEventListener(command, listener);
-	document.execCommand(command);
-	document.removeEventListener(command, listener);
-
-	function listener(event) {
-		event.clipboardData.setData(pageData.mimeType, pageData.content);
-		event.clipboardData.setData("text/plain", pageData.content);
-		event.preventDefault();
-	}
+	return offscreen.copyToClipboard(pageData.mimeType, pageData.content);
 }
 
 async function saveToRestFormApi(taskId, filename, content, url, token, restApiUrl, fileFieldName, urlFieldName) {

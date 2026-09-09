@@ -167,4 +167,18 @@ export default [{
 		format: "iife",
 		plugins: []
 	}]
+}, {
+	input: ["src/core/bg/worker.js"],
+	output: [{
+		file: "lib/single-file-extension-worker.js",
+		format: "iife",
+		plugins: []
+	}]
+}, {
+	input: ["src/core/bg/offscreen.js"],
+	output: [{
+		file: "lib/single-file-offscreen.js",
+		format: "iife",
+		plugins: []
+	}]
 }];
